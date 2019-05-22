@@ -8,6 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Date;
 
 /**
@@ -39,10 +41,12 @@ public class DirCleaner implements FileVisitor<Path> {
         }
     }
 
-    private final int days;
+    private final Date cutoffDate;
 
     DirCleaner(int days) {
-        this.days = days;
+        LocalDate today = LocalDate.now();
+        cutoffDate = Date.from(today.minusDays(days).atStartOfDay(ZoneId.systemDefault()).toInstant());
+        System.out.println("CutOff date: " + this.cutoffDate);
     }
 
     @Override
@@ -53,17 +57,17 @@ public class DirCleaner implements FileVisitor<Path> {
 
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-        long diff = new Date().getTime() - file.toFile().lastModified();
-        if (diff > days * 24 * 60 * 60 * 1000) {
+        Date modifiedDate = new Date(Files.getLastModifiedTime(file).toMillis());
+        if (modifiedDate.before(cutoffDate)) {
             try {
-                //boolean deleted = file.toFile().delete();
-                System.out.format("Delete file: %s%n", file);
+                boolean deleted = file.toFile().delete();
+                System.out.format("Deleted file: %s success:%s%n", file, deleted);
             } catch (Exception ex) {
                 System.err.format("Could not delete file: %s%n", file);
                 ex.printStackTrace();
             }
         } else {
-            System.out.format("Dkipping file: %s%n", file);
+            System.out.format("Skipping file: %s%n", file);
         }
         return CONTINUE;
     }
